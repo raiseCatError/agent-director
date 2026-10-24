@@ -46,7 +46,7 @@ While you are still planning, it keeps planning: it keeps a short ledger of deci
 
 https://github.com/user-attachments/assets/7f2cbe74-ad86-4d13-bbe3-04e334cff81b
 
-[4K on YouTube](https://youtu.be/zIzq_88R5OI) · [X post](https://x.com/raiseCatError/status/2107187652181303325?s=20) · [notMyShell](https://github.com/raiseCatError/notMyShell)
+[4K on YouTube](https://youtu.be/zIzq_88R5OI) · [X post](https://x.com/raiseCatError/status/2107187652181303325?s=20) · [notMyShell](https://github.com/raiseCatError/notMyShell). The inline player works on github.com; elsewhere, use the YouTube link.
 
 The reel for [notMyShell](https://github.com/raiseCatError/notMyShell), a terminal frontend over a real shell, was produced by Claude Code. The skill's motion method is distilled from that work:
 
@@ -116,11 +116,11 @@ See [Build skills](https://learn.chatgpt.com/docs/build-skills). The frontmatter
 npx skills add raiseCatError/agent-director -g -a claude-code
 ```
 
-Omit `-a` to choose agents interactively, and `-g` to install into the current project instead. This follows the CLI's documented usage. It has not yet been tested against this repository.
+Omit `-a` to choose agents interactively, and `-g` to install into the current project instead. Tested with a clean home directory and no Git credentials: it copies the skill, unchanged, to `~/.claude/skills/agent-director`. If you run Claude Code with `CLAUDE_CONFIG_DIR`, check where the skill landed, or use the manual install.
 
 ### Other agents
 
-The frontmatter uses only the spec's `name` and `description` fields, so any tool that implements the Agent Skills spec should be able to load the directory as-is. Compatibility has only been tested in Claude Code. Uploading to claude.ai or the Claude API has not been tried.
+The frontmatter uses only the spec's `name` and `description` fields, so any tool that implements the Agent Skills spec should be able to load the directory as-is. Tested so far: Claude Code with a manual install, a symlinked install, and the `skills` CLI. Codex, claude.ai uploads, and the Claude API have not been tried.
 
 ## Opinionated defaults
 
