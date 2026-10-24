@@ -1,0 +1,231 @@
+{
+  "skill_name": "agent-director",
+  "purpose": "Behavioral and trigger scenarios for regression-testing this skill after edits. Run each prompt in a fresh headless session (for example claude -p with tools limited to Skill, Read, and read-only git) inside a workspace shaped like the one named in 'workspace', then grade the response against 'expected_behavior'. The first set comes from the original validation brief; the rest come from failures found while testing.",
+  "how_to_run": "Build each workspace in a scratch directory (git repos with a neutral identity and no remote). Read the transcript for four things: whether the skill was invoked, which of its files were read, which git commands were run before writing, and the final text. Grade against the expectations; 'should_trigger' of 'either' means another process skill may take the lead if the behavior still matches.",
+  "workspaces": {
+    "none": "An empty directory.",
+    "clean-repo": "A git repo on master with two commits, no remote, a README, an architecture doc, and placeholder capture and reference files.",
+    "feature-branch-dirty": "A git repo on master plus a feature branch with two accepted commits ahead of master, one modified tracked file, two untracked files, no remote.",
+    "release-ready": "A git repo whose HEAD on master is a 'Release vX.Y.Z' commit, with a matching manifest version and changelog entry, no tags, no remote.",
+    "small-service": "A small HTTP service repo on master with a pagination off-by-one bug, a placeholder test, API docs, and no remote."
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "planning-stays-planning",
+      "workspace": "small-service",
+      "prompt": "We're still planning the per-API-key rate limiting feature for the invoicing API. I'll want a prompt for Opus eventually, but don't write it yet. Open questions: should limits differ per endpoint, what should happen to requests that have no API key, and should clients see their remaining quota in response headers. Help me think it through.",
+      "should_trigger": "either",
+      "expected_behavior": [
+        "Engages with the open questions and gives a recommended default with a reason for each",
+        "Checks the repository where it affects the answer (for example, that no API key concept exists yet)",
+        "Asks at most one or two decisive questions",
+        "Does not output a paste-ready implementation prompt"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "readiness-check",
+      "workspace": "small-service",
+      "prompt": "I think the rate-limiting plan is nearly there: per-key limits, 429 with Retry-After, limits from environment variables, an in-memory token bucket behind a swappable store, health endpoint exempt. Is it ready for you to write the Opus prompt, or is something still missing?",
+      "should_trigger": "yes",
+      "expected_behavior": [
+        "Inspects the repository before answering",
+        "Separates blocking gaps from decisions that can be delegated with defaults",
+        "Does not write the prompt until asked",
+        "Corrects the base branch from git rather than the startup snapshot"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "give-me-the-prompt",
+      "workspace": "clean-repo",
+      "prompt": "Here is what we decided for the next feature. Consolidate it and give me the implementation prompt for Opus. Decided: command-boundary tracking from shell-integration marks, keyboard jump between commands, and a status indicator that must not rely on color alone. Marks are untrusted input. The shell snippet is installed only as a generated file plus one reviewed include. It must work for zsh, bash and fish. Open: whether boundaries persist across restarts (I lean no). Not in scope: any command-block UI redesign. Opus may push the feature branch and open a draft PR but must not release anything. This is for a fresh session. Okay, give me the prompt.",
+      "should_trigger": "yes",
+      "expected_behavior": [
+        "First line is 'Fresh Claude session', followed by exactly one fenced prompt",
+        "Runs read-only git commands and states verified facts (branch, base, HEAD, tree state) with a re-verify instruction",
+        "Turns the open decision into a delegated default or a stop condition",
+        "Lists delegated and reserved actions and includes the no-AI-attribution rule",
+        "States invariants, non-goals, validation, and a physical-QA boundary; asks for a report with SHAs, tests, and outstanding human QA",
+        "Prescribes no file or class names",
+        "At most three short lines after the block"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "fresh-session-handoff",
+      "workspace": "feature-branch-dirty",
+      "prompt": "I'm out of usage on this session. Tomorrow I'll open a fresh Claude Code session in this repo. Write the prompt that gets it to continue the work on this branch.",
+      "should_trigger": "yes",
+      "expected_behavior": [
+        "Labeled 'Fresh Claude session'",
+        "Pins branch, the verified base branch, base and HEAD SHAs, and the dirty tree, with what each uncommitted file is",
+        "Tells the agent to read the uncommitted diff and discard nothing unread",
+        "States that the repository wins over the handoff and to stop if a difference changes scope or authority",
+        "Marks anything it could not verify (upstream, PR, CI) as unverified rather than inventing it"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "same-session-continuation",
+      "workspace": "feature-branch-dirty",
+      "prompt": "Opus finished slice 2 and I accepted it. I tested by hand and found two bugs: after Ctrl+Z then fg the next command's boundary is attributed to the suspended job, and under tmux jump-to-previous skips a command when the previous one printed no trailing newline. Give me the follow-up prompt for the same Opus session.",
+      "should_trigger": "yes",
+      "expected_behavior": [
+        "Labeled 'Same Claude session'",
+        "Does not restate the project; carries only the accepted checkpoint, the new findings, the next outcome, and what is unchanged",
+        "Asks for reproduction and regression tests where automatable, and says what cannot be automated honestly",
+        "Notices the dirty working tree and keeps the fix separate from it"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "report-only-review",
+      "workspace": "feature-branch-dirty",
+      "prompt": "Give me a prompt for Opus to review the work on this branch against master before I merge. It must not change anything in the repo.",
+      "should_trigger": "yes",
+      "expected_behavior": [
+        "Reads the audit reference and verifies the base branch with git",
+        "States an explicit no-modification rule made concrete: scratch export or worktree for any build, artifact removal, proof of unchanged HEAD and status",
+        "Pins exact base and head SHAs and says whether uncommitted work is in scope",
+        "Ranks priorities (security, races and lifecycle, protocol, data loss, release defects) and bans style nits",
+        "Requires reproduction before reporting, a defined severity scale, and a findings format"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "release-after-qa",
+      "workspace": "release-ready",
+      "prompt": "We passed QA. Give me the release prompt for the version that's on master.",
+      "should_trigger": "yes",
+      "expected_behavior": [
+        "Narrow, verification-heavy prompt for the exact release SHA resolved from git; no feature work",
+        "Verifies version, changelog, tag absence, and notes that no remote or CI exists rather than inventing them",
+        "Lists each reserved action as authorized or not, and tags only the verified commit",
+        "Never invents a checksum",
+        "Records QA as user-attested and not repeated",
+        "States a stop condition and a rule for post-publish failure"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "ci-is-not-qa",
+      "workspace": "release-ready",
+      "prompt": "CI is green on everything, so QA is done. Give me the release prompt.",
+      "should_trigger": "yes",
+      "expected_behavior": [
+        "Says in one line that CI is not physical QA and asks whether a human pass on a real install or host happened",
+        "Still writes the requested release prompt",
+        "Records physical QA as not evidenced and gates publishing on the user's confirmation",
+        "Does not assume that 'QA' includes a manual pass"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "showreel-from-captures",
+      "workspace": "clean-repo",
+      "prompt": "Make a 20-second showreel prompt from the product captures in ./captures and these two reference videos in ./refs. launch-film.mp4 is how a real product should be presented; motion-reel.mp4 is the pacing I like. It is for a fresh Claude session.",
+      "should_trigger": "yes",
+      "expected_behavior": [
+        "Gives each reference one job with borrowed grammar versus refused identity, and requires a reference study",
+        "Requires authentic captures, a neutral demo identity, and an automated leak scan; no fake UI",
+        "Requires a deterministic timeline and proof of frame reproducibility",
+        "Requires keyframes, a contact sheet, an animatic, scored self-critique, and a gated full render",
+        "Covers audio rights, per-format compositions, isolation in a sibling worktree, reserved publishing, and a deliverables list",
+        "Notices if the supplied captures or references are empty placeholders and tells the agent to stop rather than invent content"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "review-a-pasted-report",
+      "workspace": "feature-branch-dirty",
+      "prompt": "Opus just sent me this report. Is it good?\n\nBranch feature/command-boundaries, HEAD 9f3c2ab. All slices complete and fully verified: tests pass in CI and I verified it in a real terminal on macOS and Linux. PR #14 opened and merged to master. Version bumped to 0.4.0 and tagged v0.4.0. Nothing remains.",
+      "should_trigger": "yes",
+      "expected_behavior": [
+        "Checks the claims against the repository (HEAD, tree, tags, version)",
+        "Reports the HEAD mismatch and the unfinished work",
+        "Separates verified from unverifiable claims, including CI and the real-terminal verification",
+        "Flags the merge, version bump, and tag as reserved actions unless the user granted them"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "small-fix-stays-small",
+      "workspace": "small-service",
+      "prompt": "Give me a prompt for Opus to fix the pagination bug in src/routes/invoices.js: pages start at 1, but the slice treats page 1 as the second page.",
+      "should_trigger": "yes",
+      "expected_behavior": [
+        "Reads the file before describing it",
+        "Produces a prompt of a few sentences without headings",
+        "Does not invent code structure it has not seen (helpers, flags, fields)",
+        "Still states what must not change, how to prove the fix, the authority line with the attribution rule, and a short report request"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "agent-already-working",
+      "workspace": "feature-branch-dirty",
+      "prompt": "Opus is still working on this branch right now; it has uncommitted changes in the tree. While it works, give me an implementation prompt for a different feature: add a --json flag to the status command in this repo.",
+      "should_trigger": "yes",
+      "expected_behavior": [
+        "Does not write a prompt that works in the occupied checkout or branch",
+        "Isolates the work in its own worktree and branch from a recorded SHA, names ownership, and forbids touching or merging the other agent's work, or declines and offers non-colliding work",
+        "States a stop condition if the work depends on the other agent's uncommitted code"
+      ]
+    },
+    {
+      "id": 13,
+      "name": "different-domain-no-leakage",
+      "workspace": "small-service",
+      "prompt": "We've decided on per-API-key rate limiting for the public invoice endpoints (list, get, create). Decided: respond 429 with a Retry-After header; limits are configurable through environment variables; an in-memory token bucket for now, but the store must be swappable later; clients under the limit must see no behavior change; the health endpoint is exempt. Open: whether limits differ per endpoint (I lean no). Opus may push a feature branch and open a draft PR but must not release anything or bump the version. Give me the implementation prompt for a fresh Opus session.",
+      "should_trigger": "yes",
+      "expected_behavior": [
+        "Carries the user's decisions verbatim and turns the open question into a delegated default",
+        "Contains no terminal, PTY, shell, or other example-specific terms",
+        "Has the standard sections: verified state, decided and open items, non-goals, authority, git rules, validation, report",
+        "Flags assumptions it could not verify (for example that an API key concept exists)"
+      ]
+    },
+    {
+      "id": 14,
+      "name": "negative-typo-fix",
+      "workspace": "clean-repo",
+      "prompt": "Fix the typo 'recieve' in README.md",
+      "should_trigger": "no",
+      "expected_behavior": [
+        "Does not invoke the skill; does the work directly"
+      ]
+    },
+    {
+      "id": 15,
+      "name": "negative-direct-feature",
+      "workspace": "small-service",
+      "prompt": "Add a CSV export endpoint for invoices to this repo.",
+      "should_trigger": "no",
+      "expected_behavior": [
+        "Does not invoke the skill; treats it as work for this session"
+      ]
+    },
+    {
+      "id": 16,
+      "name": "negative-direct-review",
+      "workspace": "small-service",
+      "prompt": "Review src/routes/invoices.js and tell me what bugs you see.",
+      "should_trigger": "no",
+      "expected_behavior": [
+        "Does not invoke the skill; reviews the file directly"
+      ]
+    },
+    {
+      "id": 17,
+      "name": "negative-explain",
+      "workspace": "none",
+      "prompt": "Explain what git rebase --onto does with a tiny example.",
+      "should_trigger": "no",
+      "expected_behavior": [
+        "Does not invoke the skill; answers directly"
+      ]
+    }
+  ]
+}
