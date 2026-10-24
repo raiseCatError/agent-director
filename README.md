@@ -116,7 +116,7 @@ See [Build skills](https://learn.chatgpt.com/docs/build-skills). The frontmatter
 npx skills add raiseCatError/agent-director -g -a claude-code
 ```
 
-Omit `-a` to choose agents interactively, and `-g` to install into the current project instead.
+Omit `-a` to choose agents interactively, and `-g` to install into the current project instead. This follows the CLI's documented usage. It has not yet been tested against this repository.
 
 ### Other agents
 
